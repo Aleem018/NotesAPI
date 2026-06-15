@@ -1,5 +1,6 @@
-using System;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using NotesAPI.Data;
 using NotesAPI.Models;
 
 namespace NotesAPI.Controllers;
@@ -8,104 +9,54 @@ namespace NotesAPI.Controllers;
 [Route("api/[controller]")]
 public class NotesApiController : ControllerBase
 {
-    private static readonly List<Note> NoteList = new List<Note>();
-    private static readonly object _lockObject = new object();
+    private readonly NotesDbContext _context;
 
-    // My GET method
+    // DEPENDENCY INJECTION: The server hands the database connection to the controller
+    public NotesApiController(NotesDbContext context)
+    {
+        _context = context;
+    }
+
+    // GET: api/notesapi
     [HttpGet]
-    public IActionResult GetList()
+    public async Task<IActionResult> GetAllNotes()
     {
-        return Ok(NoteList);
+        var notes = await _context.Notes.ToListAsync();
+        return Ok(notes);
     }
 
-    // My POST method
+    // POST: api/notesapi
     [HttpPost]
-
-    public IActionResult PostList([FromBody] Note entry)
+    public async Task<IActionResult> CreateNote([FromBody] Note entry)
     {
-        if (String.IsNullOrWhiteSpace(entry.Title))
+        if (string.IsNullOrWhiteSpace(entry.Title) || string.IsNullOrWhiteSpace(entry.Content))
         {
-            return BadRequest("You must give the note a title");
+            return BadRequest("Title and Content cannot be empty.");
         }
-        if (String.IsNullOrWhiteSpace(entry.Content))
-        {
-            return BadRequest("You cannot submit an empty note");
-        }
-        Note newNote = new Note();
 
-        newNote.Title = entry.Title;
-        newNote.Content = entry.Content;
+        // EF Core automatically generates the ID. We just Add and Save.
+        _context.Notes.Add(entry);
 
-        int id = 0;
+        // To write the data to notes.db
+        await _context.SaveChangesAsync();
 
-        foreach (var note in NoteList)
-        {
-            if (note.Id > id)
-            {
-                id = note.Id;
-            }
-        }
-        newNote.Id = id + 1;
-        
-        NoteList.Add(newNote);
-
-        return StatusCode(201, newNote);
-
+        return Created($"/api/notes/{entry.Id}", entry);
     }
 
-    // GET Single note endpoint
-    [HttpGet("{id}")]
-    public IActionResult GetSingleNote(int id)
-    {
-        Note? find = NoteList.Find(x => x.Id == id);
-
-        if (find != null)
-        {
-            return Ok(find);
-        } else
-        {
-            return NotFound();
-        }
-        
-    }
-
-    // PUT - Update Endpoint (to edit a note)
-    [HttpPut("{id}")]
-    public IActionResult UpdateNote(int id, [FromBody] Note UpdatedEntry)
-    {
-        Note? find = NoteList.Find(x => x.Id == id);
-
-        if (find == null)
-        {
-            return NotFound();
-        } 
-
-        if (String.IsNullOrWhiteSpace(UpdatedEntry.Content) || String.IsNullOrWhiteSpace(UpdatedEntry.Title))
-        {
-            return BadRequest("You cannot submit an empty note");
-        } 
-        
-        find.Title = UpdatedEntry.Title;
-        find.Content = UpdatedEntry.Content;
-
-        return Ok(find);
-        
-    }
-
-    // DELETE Endpoint
+    // DELETE
     [HttpDelete("{id}")]
-    public IActionResult DeleteNote(int id)
+    public async Task<IActionResult> DeleteNote(int id)
     {
-        Note? find = NoteList.Find(x => x.Id == id);
+        var note = await _context.Notes.FindAsync(id);
 
-        if (find == null)
+        if (note == null)
         {
-            return NotFound();
+            return NotFound("Note not found.");
         }
 
-        NoteList.Remove(find);
-        return Ok("Note deleted successfully.");
-        
-    }
+        _context.Notes.Remove(note);
+        await _context.SaveChangesAsync();
 
+        return Ok("Note physically deleted from database");
+    }
 }
