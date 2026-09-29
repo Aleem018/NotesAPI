@@ -57,6 +57,6 @@ public class NotesApiController : ControllerBase
         _context.Notes.Remove(note);
         await _context.SaveChangesAsync();
 
-        return Ok("Note physically deleted from database");
+        return Ok(new {message = "Note physically deleted from database", noteId = id });
     }
 }
