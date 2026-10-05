@@ -14,4 +14,5 @@ public class NotesDbContext : DbContext
     // THIS IS THE MAGIC: 
     // This tells EF Core to create a SQL table called "Notes" based on your C# Note model
     public DbSet<Note> Notes { get; set; }
+    public DbSet<User> Users { get; set; }
 }
