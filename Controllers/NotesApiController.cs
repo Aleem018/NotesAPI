@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NotesAPI.Data;
@@ -5,6 +6,7 @@ using NotesAPI.Models;
 
 namespace NotesAPI.Controllers;
 
+[Authorize] //this locks down every route here
 [ApiController]
 [Route("api/[controller]")]
 public class NotesApiController : ControllerBase

@@ -1,5 +1,8 @@
 using NotesAPI.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +15,18 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod();
     });
 });
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MyOneAndOnlyAleemAIAKey123324NowIHaveToMakeSureItIsAtLeastSixtyFourCharactersLong")),
+            ValidateIssuer = false, //set to true in production
+            ValidateAudience = false //set to true in production
+        };
+    });
 
 // Add services to the container.
 
@@ -33,6 +48,8 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowNextJS");
 
 app.UseHttpsRedirection();
+
+app.UseAuthentication();
 
 app.UseAuthorization();
 
