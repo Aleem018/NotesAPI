@@ -14,5 +14,7 @@ public class Note
         get => DateTime.SpecifyKind(_createdAt, DateTimeKind.Utc);
         set => _createdAt = value;
     }
+    public int UserId { get; set; } // id to tell who owns what note
+    public User User { get; set; }
 
 }

@@ -14,9 +14,11 @@ using NotesAPI.DTOs;
 public class AuthController : ControllerBase
 {
     private readonly NotesDbContext _context;
-    public AuthController(NotesDbContext context)
+    private readonly IConfiguration _config;
+    public AuthController(NotesDbContext context, IConfiguration config)
     {
         _context = context;
+        _config = config;
     }
 
     [HttpPost("register")]
@@ -53,13 +55,25 @@ public class AuthController : ControllerBase
 
         var token = CreateToken(user);
 
-        return Ok(new { token = token });
+        var cookieOptions = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTime.UtcNow.AddDays(1)
+        };
+
+        Response.Cookies.Append("token", token, cookieOptions);
+
+        return Ok(new { message = "Logged in successfully" });
     }
 
     private string CreateToken(User user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("MyOneAndOnlyAleemAIAKey123324NowIHaveToMakeSureItIsAtLeastSixtyFourCharactersLong"));
-        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
+        var jwtKey = _config["Jwt:Key"]
+            ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
         //Attach the user's Id and EMail to the token payload
         var claims = new[]
@@ -71,7 +85,7 @@ public class AuthController : ControllerBase
         //Give the token a one day expiry date
         var tokenOptions = new JwtSecurityToken(
             claims: claims,
-            expires: DateTime.Now.AddDays(1),
+            expires: DateTime.UtcNow.AddDays(1),
             signingCredentials: creds
         );
 
