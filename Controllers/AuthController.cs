@@ -40,6 +40,8 @@ public class AuthController : ControllerBase
         _context.Users.Add(newUser);
         await _context.SaveChangesAsync();
 
+        SetAuthCookie(newUser);
+
         return Ok(new { message = "User registered successfully!" });
     }
 
@@ -48,22 +50,17 @@ public class AuthController : ControllerBase
     {
         var user = _context.Users.SingleOrDefault(u => u.Email == request.Email);
 
-        if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        if (user == null)
+        {
+            return NotFound(new {message = "No account found for this email."});
+        }
+
+        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
         {
             return Unauthorized("Invalid email or password");
         }
 
-        var token = CreateToken(user);
-
-        var cookieOptions = new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = false,
-            SameSite = SameSiteMode.Lax,
-            Expires = DateTime.UtcNow.AddDays(1)
-        };
-
-        Response.Cookies.Append("token", token, cookieOptions);
+        SetAuthCookie(user);
 
         return Ok(new { message = "Logged in successfully" });
     }
@@ -90,6 +87,19 @@ public class AuthController : ControllerBase
         );
 
         return new JwtSecurityTokenHandler().WriteToken(tokenOptions); 
+    }
+
+    private void SetAuthCookie(User user)
+    {
+        var token = CreateToken(user);
+
+        Response.Cookies.Append("token", token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTime.UtcNow.AddDays(1)
+        });
     }
 
     
