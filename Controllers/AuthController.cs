@@ -24,35 +24,44 @@ public class AuthController : ControllerBase
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto request)
     {
-        if (_context.Users.Any(u => u.Email == request.Email))
+        var email = request.Email.Trim().ToLowerInvariant();
+
+        if (await _context.Users.AnyAsync(u => u.Email == email))
         {
             return BadRequest("Email is already taken.");
         }
 
         string hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
-        
+
         var newUser = new User
         {
             Email = request.Email,
             PasswordHash = hashedPassword,
         };
 
-        _context.Users.Add(newUser);
-        await _context.SaveChangesAsync();
-
+        try
+        {
+            _context.Users.Add(newUser);
+            await _context.SaveChangesAsync();
+        } catch (DbUpdateException)
+        {
+            return BadRequest("Email is already taken.");
+        }
+        
         SetAuthCookie(newUser);
 
         return Ok(new { message = "User registered successfully!" });
     }
 
     [HttpPost("login")]
-    public IActionResult Login([FromBody] LoginDto request)
+    public async Task<IActionResult> Login([FromBody] LoginDto request)
     {
-        var user = _context.Users.SingleOrDefault(u => u.Email == request.Email);
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == email);
 
         if (user == null)
         {
-            return NotFound(new {message = "No account found for this email."});
+            return NotFound(new { message = "No account found for this email." });
         }
 
         if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
@@ -99,7 +108,7 @@ public class AuthController : ControllerBase
             signingCredentials: creds
         );
 
-        return new JwtSecurityTokenHandler().WriteToken(tokenOptions); 
+        return new JwtSecurityTokenHandler().WriteToken(tokenOptions);
     }
 
     private void SetAuthCookie(User user)
@@ -115,5 +124,5 @@ public class AuthController : ControllerBase
         });
     }
 
-    
+
 }

@@ -15,4 +15,11 @@ public class NotesDbContext : DbContext
     // This tells EF Core to create a SQL table called "Notes" based on your C# Note model
     public DbSet<Note> Notes { get; set; }
     public DbSet<User> Users { get; set; }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<User>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+    }
 }
