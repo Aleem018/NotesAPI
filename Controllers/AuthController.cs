@@ -65,6 +65,19 @@ public class AuthController : ControllerBase
         return Ok(new { message = "Logged in successfully" });
     }
 
+    [HttpPost("logout")]
+    public IActionResult Logout()
+    {
+        Response.Cookies.Delete("token", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = false,
+            SameSite = SameSiteMode.Lax
+        });
+
+        return Ok(new { message = "Logged out successfully!" });
+    }
+
     private string CreateToken(User user)
     {
         var jwtKey = _config["Jwt:Key"]
