@@ -94,4 +94,31 @@ public class NotesApiController : ControllerBase
 
         return Ok(new {message = "Note physically deleted from database", noteId = id });
     }
+
+    // EDIT
+    [HttpPut("{id}")]
+    public async Task<IActionResult> EditNote(int id, [FromBody] UpdateNoteDto entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.Title) || string.IsNullOrWhiteSpace(entry.Content))
+        {
+            return BadRequest("Title and Content cannot be empty.");
+        }
+
+        int currentUserId = GetUserId();
+
+        var note = await _context.Notes
+            .FirstOrDefaultAsync(n => n.Id == id && n.UserId == currentUserId);
+        
+        if (note == null)
+        {
+            return NotFound("Note not found.");
+        }
+
+        note.Title = entry.Title.Trim();
+        note.Content = entry.Content.Trim();
+
+        await _context.SaveChangesAsync();
+
+        return Ok(note);
+    }
 }
