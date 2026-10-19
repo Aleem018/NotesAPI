@@ -8,6 +8,9 @@ using System.Text;
 using NotesAPI.Models;
 using NotesAPI.Data;
 using NotesAPI.DTOs;
+using NotesAPI.Services;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.WebUtilities;
 
 [ApiController]
 [Route("api/auth")]
@@ -15,11 +18,15 @@ public class AuthController : ControllerBase
 {
     private readonly NotesDbContext _context;
     private readonly IConfiguration _config;
-    public AuthController(NotesDbContext context, IConfiguration config)
+    private readonly IAppEmailSender _emailSender;
+    public AuthController(NotesDbContext context, IConfiguration config, IAppEmailSender emailSender)
     {
         _context = context;
         _config = config;
+        _emailSender = emailSender;
     }
+    private static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterDto request)
@@ -85,6 +92,51 @@ public class AuthController : ControllerBase
         });
 
         return Ok(new { message = "Logged out successfully!" });
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == email);
+
+        if (user != null)
+        {
+            var token = WebEncoders.Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+
+            user.PasswordResetTokenHash = HashToken(token);
+            user.PasswordResetExpiresAt = DateTime.UtcNow.AddMinutes(30);
+            await _context.SaveChangesAsync();
+
+            var link = $"{_config["Frontend:BaseUrl"]}/reset-password?token={token}";
+            await _emailSender.SendAsync(
+                user.Email,
+                "Reset your password",
+                $"Click this link to reset your password (valid for 30 minutes):\n{link}\n" + 
+                "If you didn't request this, you can ignore this email."
+            );
+        }
+
+        return Ok(new { message = "If an account exists for that email, a reset link has been sent." });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
+    {
+        var hash = HashToken(request.Token);
+        var user = await _context.Users.SingleOrDefaultAsync(u => u.PasswordResetTokenHash == hash);
+
+        if (user == null || user.PasswordResetExpiresAt == null || user.PasswordResetExpiresAt < DateTime.UtcNow)
+        {
+            return BadRequest("This reset link is invalid or has expired");
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetExpiresAt = null;
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Password updated. You can now log in. "});
     }
 
     private string CreateToken(User user)

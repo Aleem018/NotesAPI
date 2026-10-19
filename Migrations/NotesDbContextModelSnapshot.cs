@@ -61,6 +61,12 @@ namespace NotesAPI.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("PasswordResetExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PasswordResetTokenHash")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Email")

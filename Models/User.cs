@@ -11,4 +11,6 @@ public class User
         get => DateTime.SpecifyKind(_createdAt, DateTimeKind.Utc);
         set => _createdAt = value;
     }
+    public string? PasswordResetTokenHash { get; set; }
+    public DateTime? PasswordResetExpiresAt { get; set; }
 }

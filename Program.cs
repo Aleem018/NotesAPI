@@ -55,6 +55,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<NotesDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+builder.Services.AddScoped<NotesAPI.Services.IAppEmailSender, NotesAPI.Services.ConsoleEmailSender>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
